@@ -3,6 +3,10 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query
 from contextlib import asynccontextmanager
 from sqlmodel import Field, Session, SQLModel, create_engine, select
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 class Device(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -15,11 +19,11 @@ class DeviceUpdate(SQLModel):
     uptime: int | None = None
     contrato: str | None = None
 
-sqlite_file_name = "database.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL não configurada")
 
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, connect_args=connect_args)
+engine = create_engine(DATABASE_URL)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

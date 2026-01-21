@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-API_URL = "http://localhost:8000"
+API_URL = "http://fastAPI_devices:8000"
 
 st.markdown("# 📱 Lista de Dispositivos")
 st.sidebar.markdown("# Lista de Dispositivos")
