@@ -1,32 +1,49 @@
 import streamlit as st
 import requests
+import os
 
-API_URL = "http://fastAPI_devices:8000"
+API_URL = os.getenv("API_URL", "http://fastAPI_devices:8000")
 
 st.markdown("# 🔧 Ajuste de Dispositivos")
-st.sidebar.markdown("# Ajustes")
 
 st.subheader("Cadastro de dispositivos")
 
 #ENCONTRAR DISPOSITIVO
-chamado_get = requests.get(f"{API_URL}/devices/")
+def fetch_all_devices():
+    all_devices = []
+    offset = 0
+    limit = 50
+    while True:
+        resp = requests.get(f"{API_URL}/devices/", params={"offset": offset, "limit": limit})
+        if resp.status_code != 200:
+            break
+        batch = resp.json()
+        if not batch:
+            break
+        all_devices.extend(batch)
+        if len(batch) < limit:
+            break
+        offset += limit
+    return all_devices
 
-if chamado_get.status_code != 200:
-    st.error("Erro ao buscar dispositivos")
-    st.stop()
-
-devices = chamado_get.json()
+devices = fetch_all_devices()
 
 if not devices:
     st.info("Nenhum dispositivo cadastrado")
     st.stop()
 
 #SELECIONAR DISPOSITIVO PARA EXIBIR
-device_map = {}
+busca = st.text_input("Buscar dispositivo por nome", "")
 
+device_map = {}
 for d in devices:
     chave = f"{d['id']} - {d['nome']}"
-    device_map[chave] = d
+    if busca.strip() == "" or busca.strip().lower() in d['nome'].lower():
+        device_map[chave] = d
+
+if not device_map:
+    st.warning("Nenhum dispositivo encontrado com esse filtro")
+    st.stop()
 
 selecao_de_ajuste = st.selectbox(
     "Selecione um dispositivo",

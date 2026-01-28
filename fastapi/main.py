@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query
 from contextlib import asynccontextmanager
 from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlalchemy import func
 from dotenv import load_dotenv
 import os
 
@@ -12,6 +13,11 @@ class Device(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nome: str = Field(index=True)
     uptime: int = Field (default=0, index=True)
+    contrato: str
+
+class CriarDispositivo(SQLModel):
+    nome: str
+    uptime: int = 0
     contrato: str
 
 class DeviceUpdate(SQLModel):
@@ -43,12 +49,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 #CREATE
-@app.post("/devices/")
-def create_device(device: Device, session: SessionDep) -> Device:
-    session.add(device)
+@app.post("/devices/", status_code=201)
+def create_device(device: CriarDispositivo, session: SessionDep) -> Device:
+    existing = session.exec(select(Device).where(Device.nome == device.nome)).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Dispositivo com nome '{device.nome}' ja existe")
+    db_device = Device.model_validate(device)
+    session.add(db_device)
     session.commit()
-    session.refresh(device)
-    return device
+    session.refresh(db_device)
+    return db_device
 
 #UPDATE
 @app.patch("/devices/{device_id}", response_model=Device)
@@ -70,6 +80,14 @@ def update_device(
     session.refresh(device)
 
     return device
+
+#COUNT
+@app.get("/devices/count")
+def count_devices(session: SessionDep, min_uptime: int = 60) -> dict:
+    count = session.exec(
+        select(func.count()).select_from(Device).where(Device.uptime > min_uptime)
+    ).one()
+    return {"count": count}
 
 #READ
 @app.get("/devices/")
